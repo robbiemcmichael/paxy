@@ -39,7 +39,7 @@ func (pac *PAC) Evaluate(r *http.Request) (*url.URL, error) {
 
 	if err == nil {
 
-		reqLogger.Infof("%s %s %s", r.Method, r.Proto, r.URL.String())
+		reqLogger.Infof("%s %s", r.Method, r.URL.String())
 
 		fields := strings.Fields(proxy)
 		if len(fields) == 0 {
