@@ -16,6 +16,11 @@ func init() {
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 	log.SetReportCaller(false)
+
+	formatter := new(log.TextFormatter)
+	formatter.FullTimestamp = true
+	formatter.TimestampFormat = "15:04:05"
+	log.SetFormatter(formatter)
 }
 
 func usage() {
@@ -30,8 +35,8 @@ func main() {
 	flag.Parse()
 
 	if flag.NArg() == 0 {
-	    flag.Usage()
-	    os.Exit(1)
+		flag.Usage()
+		os.Exit(1)
 	}
 
 	pac := internal.PAC{
