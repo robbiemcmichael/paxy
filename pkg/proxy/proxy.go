@@ -9,6 +9,7 @@ import (
 	"net/url"
 
 	log "github.com/sirupsen/logrus"
+	netproxy "golang.org/x/net/proxy"
 )
 
 type Proxy struct {
@@ -82,16 +83,23 @@ func (proxy *Proxy) HttpConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var target string
+	var serverConn net.Conn
 	if hop == nil {
-		// Connecting directly to the host in the request
-		target = r.Host
+		// Connect directly to the host in the request
+		serverConn, err = proxy.dial("tcp", r.Host)
 	} else {
-		// Connecting to another proxy
-		target = hop.Host
+		// Connect via another proxy
+		if hop.Scheme == "http" {
+			serverConn, err = proxy.dial("tcp", hop.Host)
+		} else if hop.Scheme == "socks5" {
+			serverConn, err = proxy.dialSocks5("tcp", hop.Host, r.Host)
+		} else {
+			log.Warnf("Unsupported scheme: %s", hop.Scheme)
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
 	}
 
-	serverConn, err := proxy.dial(context.Background(), "tcp", target)
 	if err != nil {
 		log.Warnf("Connecting to server: %s", err)
 		w.WriteHeader(http.StatusBadGateway)
@@ -100,11 +108,16 @@ func (proxy *Proxy) HttpConnect(w http.ResponseWriter, r *http.Request) {
 	defer serverConn.Close()
 
 	if hop == nil {
-		// Need to respond with 200 to the CONNECT if not using a proxy
+		// Respond with 200 to the CONNECT if not using a proxy
 		w.WriteHeader(http.StatusOK)
 	} else {
-		// Write the original CONNECT to the proxy and allow it to reply
-		r.Write(serverConn)
+		if hop.Scheme == "http" {
+			// Write the original CONNECT to the HTTP proxy and allow it to reply
+			r.Write(serverConn)
+		} else if hop.Scheme == "socks5" {
+			// Respond with 200 to the CONNECT since the SOCKS5 proxy won't do this
+			w.WriteHeader(http.StatusOK)
+		}
 	}
 
 	clientConn, _, err := hj.Hijack()
@@ -120,16 +133,26 @@ func (proxy *Proxy) HttpConnect(w http.ResponseWriter, r *http.Request) {
 }
 
 // Use the Transport's Dialer otherwise fall back to net.Dialer
-func (proxy *Proxy) dial(ctx context.Context, network, addr string) (net.Conn, error) {
+func (proxy *Proxy) dial(network string, addr string) (net.Conn, error) {
 	transport, ok := proxy.Client.Transport.(*http.Transport)
 	if ok {
 		if transport.DialContext != nil {
-			return transport.DialContext(ctx, network, addr)
+			return transport.DialContext(context.Background(), network, addr)
 		} else if transport.Dial != nil {
 			return transport.Dial(network, addr)
 		}
 	}
 
 	dialer := net.Dialer{}
-	return dialer.DialContext(ctx, network, addr)
+	return dialer.Dial(network, addr)
+}
+
+// Connect to the address via a SOCKS5 proxy
+func (proxy *Proxy) dialSocks5(network string, hop string, addr string) (net.Conn, error) {
+	dialer, err := netproxy.SOCKS5(network, hop, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return dialer.Dial(network, addr)
 }
