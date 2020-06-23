@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -35,10 +36,9 @@ func (pac *PAC) Evaluate(r *http.Request) (*url.URL, error) {
 		},
 	)
 
-	errCtx := fmt.Sprintf("evaluating PAC file %s", pac.File)
+	errCtx := fmt.Sprintf("evaluating PAC file %q", pac.File)
 
 	if err == nil {
-
 		reqLogger.Infof("%s %s", r.Method, r.URL.String())
 
 		fields := strings.Fields(proxy)
@@ -52,21 +52,16 @@ func (pac *PAC) Evaluate(r *http.Request) (*url.URL, error) {
 		case "DIRECT":
 			return nil, nil
 
-		case "PROXY", "HTTP":
-			if len(fields) < 2 {
-				msg := fmt.Sprintf("expected proxy to have format: %s host:port", fields[0])
-				reqLogger.Warnf("PAC file error: %s", msg)
-				return nil, fmt.Errorf("%s: expected proxy to have format \"%s host:port\" but got %q", errCtx, fields[0], proxy)
+		case "PROXY", "HTTP", "SOCKS", "SOCKS5":
+			scheme, err := getScheme(fields)
+			if err != nil {
+				reqLogger.Warnf("Invalid proxy configuration string")
+				return nil, fmt.Errorf("%s: proxy configuration string %q: %s", errCtx, proxy, err)
 			}
 
-			if len(fields) > 2 {
-				reqLogger.Warnf("PAC file returned multiple proxies, only the first will be used")
-			}
+			return url.Parse(scheme + "://" + strings.TrimSuffix(fields[1], ";"))
 
-			target := "http://" + strings.TrimSuffix(fields[1], ";")
-			return url.Parse(target)
-
-		case "SOCKS", "SOCKS4", "SOCKS5":
+		case "SOCKS4":
 			reqLogger.Warn("PAC file error: unsupported proxy")
 			return nil, fmt.Errorf("%s: unsupported proxy: %s", errCtx, proxy)
 
@@ -80,4 +75,27 @@ func (pac *PAC) Evaluate(r *http.Request) (*url.URL, error) {
 	}
 
 	return nil, nil
+}
+
+func getScheme(fields []string) (string, error) {
+	if len(fields) == 0 {
+		return "", errors.New("empty proxy configuration string")
+	}
+
+	if len(fields) == 1 {
+		return "", fmt.Errorf("expected format \"%s host:port\"", fields[0])
+	}
+
+	if len(fields) > 2 {
+		log.Warnf("PAC file returned multiple proxies, only the first will be used")
+	}
+
+	switch fields[0] {
+	case "PROXY", "HTTP":
+		return "http", nil
+	case "SOCKS", "SOCKS5":
+		return "socks5", nil
+	default:
+		return "", fmt.Errorf("invalid proxy type: %s", fields[0])
+	}
 }
