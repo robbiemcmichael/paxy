@@ -56,7 +56,6 @@ func (proxy *Proxy) Http(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(resp.StatusCode)
 
-	// Ignore benign errors for closed connections
 	io.Copy(w, resp.Body)
 }
 
@@ -127,8 +126,12 @@ func (proxy *Proxy) HttpConnect(w http.ResponseWriter, r *http.Request) {
 	}
 	defer clientConn.Close()
 
-	// Ignore benign errors for closed connections
-	go io.Copy(clientConn, serverConn)
+	go func() {
+		io.Copy(clientConn, serverConn)
+		clientConn.Close()
+		serverConn.Close()
+	}()
+
 	io.Copy(serverConn, clientConn)
 }
 
