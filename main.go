@@ -24,7 +24,7 @@ func init() {
 }
 
 func usage() {
-	fmt.Printf("Usage: %s [options] pac_file ...\n", os.Args[0])
+	fmt.Printf("Usage: %s [options] pac_file\n", os.Args[0])
 	flag.PrintDefaults()
 }
 

@@ -83,28 +83,40 @@ func (proxy *Proxy) HttpConnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var serverConn net.Conn
+
 	if hop == nil {
 		// Connect directly to the host in the request
 		serverConn, err = proxy.dial("tcp", r.Host)
+		if err != nil {
+			log.Warnf("Connecting directly to %s: %s", r.Host, err)
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		defer serverConn.Close()
 	} else {
 		// Connect via another proxy
 		if hop.Scheme == "http" {
 			serverConn, err = proxy.dial("tcp", hop.Host)
+			if err != nil {
+				log.Warnf("Connecting via %s: %s", hop, err)
+				w.WriteHeader(http.StatusBadGateway)
+				return
+			}
+			defer serverConn.Close()
 		} else if hop.Scheme == "socks5" {
 			serverConn, err = proxy.dialSocks5("tcp", hop.Host, r.Host)
+			if err != nil {
+				log.Warnf("Connecting via %s: %s", hop, err)
+				w.WriteHeader(http.StatusBadGateway)
+				return
+			}
+			defer serverConn.Close()
 		} else {
 			log.Warnf("Unsupported scheme: %s", hop.Scheme)
 			w.WriteHeader(http.StatusBadGateway)
 			return
 		}
 	}
-
-	if err != nil {
-		log.Warnf("Connecting to server: %s", err)
-		w.WriteHeader(http.StatusBadGateway)
-		return
-	}
-	defer serverConn.Close()
 
 	if hop == nil {
 		// Respond with 200 to the CONNECT if not using a proxy
