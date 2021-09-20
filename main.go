@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 
@@ -11,6 +12,20 @@ import (
 	"github.com/robbiemcmichael/paxy/internal"
 	"github.com/robbiemcmichael/paxy/pkg/proxy"
 )
+
+type Server struct {
+	Proxy  *proxy.Proxy
+	Source []byte
+}
+
+func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet && r.URL.Host == "" && r.URL.Path == "/pac" {
+		w.Write([]byte(server.Source))
+		w.Write([]byte("\n"))
+	} else {
+		server.Proxy.ServeHTTP(w, r)
+	}
+}
 
 func init() {
 	log.SetOutput(os.Stdout)
@@ -43,7 +58,13 @@ func main() {
 		File: flag.Arg(0),
 	}
 
-	if err := pac.Init(); err != nil {
+	src, err := ioutil.ReadFile(pac.File)
+
+	if err != nil {
+		log.Fatalf("Failed to read PAC: %s", err)
+	}
+
+	if err := pac.InitWithBytes(src); err != nil {
 		log.Fatalf("Failed to initialise PAC: %s", err)
 	}
 
@@ -55,6 +76,11 @@ func main() {
 		log.Fatalf("Failed to initialise proxy: %s", err)
 	}
 
+	server := &Server{
+		Source: src,
+		Proxy:  paxy,
+	}
+
 	addr := fmt.Sprintf("127.0.0.1:%d", *port)
-	log.Fatal(http.ListenAndServe(addr, paxy))
+	log.Fatal(http.ListenAndServe(addr, server))
 }
