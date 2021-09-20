@@ -23,9 +23,9 @@ type PAC struct {
 func (pac *PAC) Init() error {
 	pac.Parser = new(gopac.Parser)
 	src, err := ioutil.ReadFile(pac.File)
+
 	if err != nil {
-		log.Errorf("Failed to read PAC file: %s", err)
-		return nil
+		return fmt.Errorf("reading PAC file: %s", err)
 	}
 	pac.Source = src
 	return pac.Parser.ParseBytes(pac.Source)
