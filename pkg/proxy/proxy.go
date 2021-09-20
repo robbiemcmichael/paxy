@@ -10,11 +10,18 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	netproxy "golang.org/x/net/proxy"
+
+	"github.com/robbiemcmichael/paxy/internal"
 )
 
 type Proxy struct {
 	Client  *http.Client
-	Forward func(*http.Request) (*url.URL, error)
+	// Forward func(*http.Request) (*url.URL, error)
+	PAC     internal.PAC
+}
+
+func (proxy *Proxy) Forward(r *http.Request) (*url.URL, error) {
+	return proxy.PAC.Evaluate(r)
 }
 
 func (proxy *Proxy) Init() error {
@@ -42,21 +49,26 @@ func (proxy *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (proxy *Proxy) Http(w http.ResponseWriter, r *http.Request) {
-	resp, err := proxy.Client.Transport.RoundTrip(r)
-	if err != nil {
-		log.Warnf("HTTP round trip: %s", err)
-		w.WriteHeader(http.StatusBadGateway)
-		return
+	if (r.Method == http.MethodGet && r.URL.Host == "" && r.URL.Path == "/pac") {
+		w.Write([]byte(proxy.PAC.Source))
+		w.Write([]byte("\n"))
+	} else {
+		resp, err := proxy.Client.Transport.RoundTrip(r)
+		if err != nil {
+			log.Warnf("HTTP round trip: %s", err)
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		defer resp.Body.Close()
+
+		for name, values := range resp.Header {
+			w.Header()[name] = values
+		}
+
+		w.WriteHeader(resp.StatusCode)
+
+		io.Copy(w, resp.Body)
 	}
-	defer resp.Body.Close()
-
-	for name, values := range resp.Header {
-		w.Header()[name] = values
-	}
-
-	w.WriteHeader(resp.StatusCode)
-
-	io.Copy(w, resp.Body)
 }
 
 func (proxy *Proxy) HttpConnect(w http.ResponseWriter, r *http.Request) {

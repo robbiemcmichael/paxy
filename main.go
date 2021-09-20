@@ -48,7 +48,7 @@ func main() {
 	}
 
 	paxy := &proxy.Proxy{
-		Forward: pac.Evaluate,
+		PAC: pac,
 	}
 
 	if err := paxy.Init(); err != nil {

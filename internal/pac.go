@@ -7,20 +7,28 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"io/ioutil"
 
 	"github.com/jackwakefield/gopac"
 	log "github.com/sirupsen/logrus"
 )
 
 type PAC struct {
-	File   string
+	File    string
+	Source  []byte
 	Parser *gopac.Parser
 	mux    sync.Mutex
 }
 
 func (pac *PAC) Init() error {
 	pac.Parser = new(gopac.Parser)
-	return pac.Parser.Parse(pac.File)
+	src, err := ioutil.ReadFile(pac.File)
+	if err != nil {
+		log.Errorf("Failed to read PAC file: %s", err)
+		return nil
+	}
+	pac.Source = src
+	return pac.Parser.ParseBytes(pac.Source)
 }
 
 func (pac *PAC) Evaluate(r *http.Request) (*url.URL, error) {
