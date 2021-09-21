@@ -21,7 +21,6 @@ type Server struct {
 func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet && r.URL.Host == "" && r.URL.Path == "/pac" {
 		w.Write([]byte(server.Source))
-		w.Write([]byte("\n"))
 	} else {
 		server.Proxy.ServeHTTP(w, r)
 	}
