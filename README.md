@@ -84,3 +84,10 @@ function FindProxyForURL(url, host) {
 This will route all HTTP connections to `*.private.example.com` via
 `remote-host` while all other HTTP connections are made from your host
 directly.
+
+#### Working with other PAC proxies
+
+As a special case, `paxy` will serve it's own PAC file when a HTTP GET
+request is made to the `/pac` URL. This is useful to use as a PAC file
+source for other PAC-using proxies on the same system, e.g. your system
+proxy settings.
