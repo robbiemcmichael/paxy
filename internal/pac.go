@@ -23,6 +23,11 @@ func (pac *PAC) Init() error {
 	return pac.Parser.Parse(pac.File)
 }
 
+func (pac *PAC) InitWithBytes(input []byte) error {
+	pac.Parser = new(gopac.Parser)
+	return pac.Parser.ParseBytes(input)
+}
+
 func (pac *PAC) Evaluate(r *http.Request) (*url.URL, error) {
 	// gopac isn't thread safe, so we have to use a mutex
 	pac.mux.Lock()
