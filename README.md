@@ -7,6 +7,10 @@ to select different proxies depending on the hostname of the connection.
 
 ## Installation
 
+Binaries are available from the [releases][releases] page.
+
+Alternatively, you can build and install `paxy` with the following command:
+
 ```bash
 go get -u -v github.com/robbiemcmichael/paxy
 ```
@@ -69,7 +73,7 @@ can create the dynamic port forward with:
 ssh -D 8229 remote-host
 ```
 
-The use the following PAC file:
+Then use the following PAC file:
 
 ```js
 function FindProxyForURL(url, host) {
@@ -87,7 +91,9 @@ directly.
 
 #### Working with other PAC proxies
 
-As a special case, `paxy` will serve it's own PAC file when a HTTP GET
+As a special case, `paxy` will serve its own PAC file when a HTTP GET
 request is made to the `/pac` URL. This is useful to use as a PAC file
 source for other PAC-using proxies on the same system, e.g. your system
 proxy settings.
+
+[releases]: https://github.com/robbiemcmichael/paxy/releases
