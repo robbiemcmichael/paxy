@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/jackwakefield/gopac"
+	"github.com/luke-clifton/gopac"
 	log "github.com/sirupsen/logrus"
 )
 

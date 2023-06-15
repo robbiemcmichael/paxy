@@ -37,6 +37,12 @@ Usage: paxy [options] pac_file
     	The port on which the server listens (default 8228)
 ```
 
+It is also possible to set the `GOPAC_MYIPADDRESS` environment variable
+to control which IP the `myIpAddress()` PAC function will return. Setting
+it to an IP address will return that IP directly, otherwise setting it
+to an interface name will return an IP address associated with that network
+interface.
+
 ### Examples
 
 #### Pairing `paxy` with `cntlm`
